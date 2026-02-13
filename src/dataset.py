@@ -135,14 +135,14 @@ class BoneFractureDataset(Dataset):
 
 
 
-    #quick test
-    if __name__ == "__main__":
-        train_loader, val_loader, test_loader = get_dataloaders()
+#quick test
+if __name__ == "__main__":
+    train_loader, val_loader, test_loader = get_dataloaders()
 
-        batch_imgs, batch_labels = next(iter(train_loader))
-        print(f"Batch shape: {batch_imgs.shape}")
-        print(f"Labels: {batch_labels[:10]}")
-        print(f"Label distribution in batch: {batch_labels.sum().item()}/{len(batch_labels)} fractured")
+    batch_imgs, batch_labels = next(iter(train_loader))
+    print(f"Batch shape: {batch_imgs.shape}")
+    print(f"Labels: {batch_labels[:10]}")
+    print(f"Label distribution in batch: {batch_labels.sum().item()}/{len(batch_labels)} fractured")
 
 
             
