@@ -6,6 +6,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 import numpy as np
 import os
 
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #load best model
@@ -27,6 +28,8 @@ with torch.no_grad():
         all_preds.extend(preds.numpy())
         all_labels.extend(labels.numpy())
 
+
 print(classification_report(all_labels, all_preds, target_names=["not_fractured", "fractured"]))
 print("Confusion Matrix:")
 print(confusion_matrix(all_labels, all_preds))
+

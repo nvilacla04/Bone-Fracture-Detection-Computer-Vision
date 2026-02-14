@@ -17,11 +17,11 @@ class BoneFractureModel(nn.Module):
         #replace classification head
         in_features = self.backbone.fc.in_features  # 2048
         self.backbone.fc = nn.Sequential(
-            nn.Dropout(0.5),
-            nn.Linear(in_features, 256),
+            nn.Dropout(0.6),
+            nn.Linear(in_features, 512),
             nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(256, num_classes),
+            nn.Dropout(0.2),
+            nn.Linear(512, num_classes),
         )
 
     def forward(self, x):
@@ -52,6 +52,7 @@ class BoneFractureModel(nn.Module):
                 for param in layer.parameters():
                     param.requires_grad = True
 
+    
     def get_param_groups(self, lr_head=1e-3, lr_backbone=1e-5):
         """
         returns parameter groups with different learning rates
@@ -79,13 +80,13 @@ if __name__ == "__main__":
     model = BoneFractureModel()
 
     print("=" * 30)
-    print("Frozen backbone (head only)")
+    print("fozen backbone")
     print("=" * 30)
     model.count_params()
 
     print("\n")
     print("=" * 30)
-    print("Unfrozen from layer3")
+    print("unfrozen from layer3")
     model.unfreeze_backbone("layer3")
     model.count_params()
 
@@ -94,3 +95,4 @@ if __name__ == "__main__":
     out = model(dummy)
     print(f"\noutput shape: {out.shape}")  #[4, 2]
     print(f"predictions: {out.argmax(dim=1)}")
+    

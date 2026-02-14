@@ -23,4 +23,4 @@ for col, cls in enumerate(["fractured", "not_fractured"]):
 plt.tight_layout()
 plt.savefig("data_comparison.png", dpi=150)
 plt.show()
-print("Saved to data_comparison.png")
+print("saved to data_comparison.png")

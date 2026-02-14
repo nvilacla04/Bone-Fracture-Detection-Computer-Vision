@@ -25,9 +25,9 @@ class BoneFractureDataset(Dataset):
                 except Exception:
                     print(f"smth went wrong bro {fpath}")
 
+    
     def __len__(self):
         return len(self.images)
-
     def __getitem__(self, idx):
         img = Image.open(self.images[idx]).convert("RGB")
         label = self.labels[idx]
@@ -62,13 +62,15 @@ val_transform = transforms.Compose([
 ])
 
 
+
 def get_dataloaders(data_dir="data/BoneFractureDataset", batch_size=32):
-    """Merge train+test, then re-split properly."""
+    """merge train+test, then re-split properly holy mole"""
     all_images = []
     all_labels = []
 
     classes = ["not_fractured", "fractured"]
 
+    
     for split in ["training", "testing"]:
         for idx, cls in enumerate(classes):
             cls_path = os.path.join(data_dir, split, cls)
@@ -76,7 +78,8 @@ def get_dataloaders(data_dir="data/BoneFractureDataset", batch_size=32):
                 all_images.append(os.path.join(cls_path, fname))
                 all_labels.append(idx)
 
-    # Stratified split: 70% train, 15% val, 15% test
+    
+    #stratified split 70% train, 15% val, 15% test
     train_imgs, temp_imgs, train_labels, temp_labels = train_test_split(
         all_images, all_labels, test_size=0.3, stratify=all_labels, random_state=42
     )
@@ -97,8 +100,9 @@ def get_dataloaders(data_dir="data/BoneFractureDataset", batch_size=32):
         batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True,
     )
 
-    print(f"Train: {len(train_imgs)}\t Val: {len(val_imgs)}\t Test: {len(test_imgs)}")
+    print(f"teain: {len(train_imgs)}\t val: {len(val_imgs)}\t test: {len(test_imgs)}")
     return train_loader, val_loader, test_loader
+
 
 
 class ImageListDataset(Dataset):
@@ -117,11 +121,14 @@ class ImageListDataset(Dataset):
         return img, self.labels[idx]
 
 
-# quick test
+#quick test
 if __name__ == "__main__":
     train_loader, val_loader, test_loader = get_dataloaders()
+    
 
     batch_imgs, batch_labels = next(iter(train_loader))
-    print(f"Batch shape: {batch_imgs.shape}")
-    print(f"Labels: {batch_labels[:10]}")
-    print(f"Label distribution in batch: {batch_labels.sum().item()}/{len(batch_labels)} fractured")
+    print(f"batch shape: {batch_imgs.shape}")
+    print(f"labels: {batch_labels[:10]}")
+    print(f"label distribution in batch: {batch_labels.sum().item()}/{len(batch_labels)} fractured")
+
+    
