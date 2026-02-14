@@ -74,9 +74,9 @@ def validate(model, loader, criterion, device):
 def train(
     data_dir="data/BoneFractureDataset",
     batch_size=32,
-    head_epochs=10,
-    finetune_epochs=20,
-    lr_head=1e-3,
+    head_epochs=5,
+    finetune_epochs=15,
+    lr_head=1e-4,
     lr_backbone=1e-5,
     patience=7,
     save_dir="checkpoints",
@@ -84,10 +84,10 @@ def train(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # Data
+    #data
     train_loader, val_loader, test_loader = get_dataloaders(data_dir, batch_size)
 
-    # Model
+    #model
     model = BoneFractureModel().to(device)
 
     criterion = nn.CrossEntropyLoss()
@@ -125,7 +125,7 @@ def train(
             print("\tEarly stopping triggered")
             break
 
-    # ===== Phase 2: Fine-tune backbone =====
+    #fine tuning backbone
     print("\n" + "=" * 50)
     print("PHASE 2: Fine-tuning backbone from layer3")
     print("=" * 50)

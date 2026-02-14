@@ -1,0 +1,155 @@
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from PIL import Image
+from torchvision import transforms
+from model import BoneFractureModel
+
+
+"""
+heat map to show what the model is 'looking' at. 
+Verify its not looking at text markers or image edges.
+Verify its looking at joint/bone areas
+
+"""
+class GradCAM:
+    def __init__(self, model, target_layer):
+        self.model = model
+        self.model.eval()
+        self.gradients = None
+        self.activations = None
+
+        # hook into the target layer
+        target_layer.register_forward_hook(self._save_activation)
+        target_layer.register_full_backward_hook(self._save_gradient)
+
+    def _save_activation(self, module, input, output):
+        self.activations = output.detach()
+
+    def _save_gradient(self, module, grad_input, grad_output):
+        self.gradients = grad_output[0].detach()
+
+    def generate(self, input_tensor, target_class=None):
+        with torch.enable_grad():
+            input_tensor.requires_grad_(True)
+            output = self.model(input_tensor)
+
+            if target_class is None:
+                target_class = output.argmax(dim=1).item()
+
+            self.model.zero_grad()
+            output[0, target_class].backward()
+
+        #global average pool the gradients
+        weights = self.gradients.mean(dim=[2, 3], keepdim=True)
+        cam = (weights * self.activations).sum(dim=1, keepdim=True)
+        cam = torch.relu(cam)
+
+        #normalize to [0, 1]
+        cam = cam.squeeze().cpu().numpy()
+        cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
+
+        return cam, target_class, output.softmax(dim=1)[0].detach()
+
+
+def load_image(path):
+    """load and preprocess a single image."""
+    img = Image.open(path).convert("RGB")
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225]),
+    ])
+    tensor = transform(img).unsqueeze(0)
+    return img.resize((224, 224)), tensor
+
+
+def overlay_heatmap(img, cam, alpha=0.5):
+    """overlay Grad-CAM heatmap on original image."""
+    cam_resized = np.array(Image.fromarray(cam).resize((224, 224), Image.BILINEAR))
+    heatmap = cm.jet(cam_resized)[:, :, :3]
+
+    img_array = np.array(img).astype(float) / 255.0
+    blended = alpha * heatmap + (1 - alpha) * img_array
+    blended = np.clip(blended, 0, 1)
+
+    return blended
+
+
+def visualize_predictions(model_path="checkpoints/best_model.pth",
+                          data_dir="data/BoneFractureDataset",
+                          num_images=8):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    #load model
+    model = BoneFractureModel().to(device)
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.eval()
+
+    #hook into last conv layer of ResNet-50
+    target_layer = model.backbone.layer4[-1]
+    grad_cam = GradCAM(model, target_layer)
+
+    class_names = ["not_fractured", "fractured"]
+
+    #collect some images from both classes and splits
+    import os
+    import random
+    image_paths = []
+    true_labels = []
+
+    for split in ["training", "testing"]:
+        for idx, cls in enumerate(class_names):
+            cls_path = os.path.join(data_dir, split, cls)
+            files = [os.path.join(cls_path, f) for f in os.listdir(cls_path)]
+            sampled = random.sample(files, min(num_images // 4, len(files)))
+            image_paths.extend(sampled)
+            true_labels.extend([idx] * len(sampled))
+
+    #shuffle and take num_images
+    combined = list(zip(image_paths, true_labels))
+    random.shuffle(combined)
+    combined = combined[:num_images]
+
+    #plot
+    fig, axes = plt.subplots(num_images, 3, figsize=(12, 4 * num_images))
+
+    for i, (path, true_label) in enumerate(combined):
+        img, tensor = load_image(path)
+        tensor = tensor.to(device)
+
+        cam, pred_class, probs = grad_cam.generate(tensor)
+        blended = overlay_heatmap(img, cam)
+
+        correct = pred_class == true_label
+        color = "green" if correct else "red"
+
+        #original image
+        axes[i, 0].imshow(img)
+        axes[i, 0].set_title(f"True: {class_names[true_label]}", fontsize=11)
+        axes[i, 0].axis("off")
+
+        #heatmap
+        axes[i, 1].imshow(cam, cmap="jet")
+        axes[i, 1].set_title("Grad-CAM heatmap", fontsize=11)
+        axes[i, 1].axis("off")
+
+        #overlay
+        axes[i, 2].imshow(blended)
+        conf = probs[pred_class].item() * 100
+        axes[i, 2].set_title(
+            f"Pred: {class_names[pred_class]} ({conf:.1f}%)",
+            fontsize=11, color=color
+        )
+        axes[i, 2].axis("off")
+
+    plt.tight_layout()
+    plt.savefig("gradcam_results.png", dpi=150, bbox_inches="tight")
+    plt.show()
+    print("saved to gradcam_results.png")
+
+
+if __name__ == "__main__":
+    visualize_predictions()
